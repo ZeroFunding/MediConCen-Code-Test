@@ -1,7 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, Unique } from 'typeorm';
 
 @Entity('records')
-@Unique(['id1', 'id2']) //id1 & id2 must be uniqueto prevent repeated record
+@Unique(['id1', 'id2']) //id1 & id2 must be unique to prevent repeated record
 export class RecordEntity {
   @PrimaryGeneratedColumn()
   id: number;
