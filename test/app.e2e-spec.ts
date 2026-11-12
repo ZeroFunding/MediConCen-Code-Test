@@ -2,10 +2,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './../src/app.module';
+import { DataSource } from 'typeorm';
+import { RecordEntity } from '../src/record/record.entity';
+import { RecordService } from '../src/record/record.service';
 
 describe('RecordController (e2e)', () => {
   let app: INestApplication;
   let generatedUserId: string;
+  const testId1 = 'TEST_1';
+  const testId2 = 'TEST_2';
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -19,6 +24,16 @@ describe('RecordController (e2e)', () => {
   });
 
   afterAll(async () => {
+    // Clear MySQL test record
+    const dataSource = app.get(DataSource);
+    await dataSource.getRepository(RecordEntity).delete({ id1: testId1, id2: testId2 });
+
+    // Clear Redis Cache
+    const recordService = app.get(RecordService);
+    const cacheKey = `record:${testId1}:${testId2}`;
+    if ((recordService as any).redisClient?.isOpen) {
+      await (recordService as any).redisClient.del(cacheKey);
+    }
     await app.close();
   });
 
@@ -34,7 +49,7 @@ describe('RecordController (e2e)', () => {
   it('/api/records (POST) - should generate new userID for new combination', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/records')
-      .send({ id1: 'TEST_1', id2: 'TEST_2' })
+      .send({ id1: testId1, id2: testId2 })
       .expect(200);
 
     expect(response.body).toHaveProperty('userID');
