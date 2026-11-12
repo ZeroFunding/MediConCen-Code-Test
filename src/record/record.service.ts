@@ -23,7 +23,13 @@ export class RecordService {
     const cacheKey = `record:${id1}:${id2}`;
 
     // Check redis cache
-    const cachedUserID = await this.redisClient.get(cacheKey);
+    let cachedUserID = null;
+    try {
+      cachedUserID = await this.redisClient.get(cacheKey);
+    } catch (redisErr) {
+      console.warn('Redis is currently unavailable, falling back to database', redisErr);
+    }
+
     if (cachedUserID) {
       return { userID: cachedUserID };
     }
@@ -41,9 +47,14 @@ export class RecordService {
     const newRecord = this.recordRepository.create({ id1, id2, userID: newUserID });
 
     try {
-      // Save the new UUID to MySQL
+      // Save new UUID to MySQL
       await this.recordRepository.save(newRecord);
-      await this.redisClient.set(cacheKey, newUserID);
+      //  Save new UUID to Redis
+      try {
+        await this.redisClient.set(cacheKey, newUserID, { EX: 3600 }); 
+      } catch (redisErr) {
+        //Ignore error when save to redis
+      }
       return { userID: newUserID };
     } catch (error: any) {
       // Concurrency Handling
