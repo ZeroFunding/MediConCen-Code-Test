@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, OnModuleDestroy } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,9 +7,8 @@ import { RecordEntity } from './record.entity';
 import { CreateRecordDto } from './dto/create-record.dto';
 
 @Injectable()
-export class RecordService {
+export class RecordService implements OnModuleDestroy {
   private redisClient: RedisClientType;
-
   constructor(
     @InjectRepository(RecordEntity)
     private recordRepository: Repository<RecordEntity>,
@@ -67,6 +66,11 @@ export class RecordService {
       }
       // unexpected error catch (prevent error message leak information)
       throw new InternalServerErrorException('An unexpected error occurred while processing the record.');
+    }
+  }
+  async onModuleDestroy() {
+    if (this.redisClient && this.redisClient.isOpen) {
+      await this.redisClient.quit();
     }
   }
 }
